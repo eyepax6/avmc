@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calculadora AV: Snellen → logMAR / ETDRS</title>
+  <style>
+    :root{
+      --ok:#2e7d32;
+      --mid:#455a64;
+      --bad:#c62828;
+      --bg:#0b0e12;
+      --fg:#e7edf3;
+      --card:#141a22;
+      --muted:#9fb0bf;
+      --shadow: 0 6px 18px rgba(0,0,0,.25);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui, sans-serif}
+    .container{max-width:900px;margin:32px auto;padding:0 16px}
+    h1{font-size:1.6rem;margin:0 0 8px}
+    .subtitle{color:var(--muted);margin:0 0 20px}
+    .card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin:16px 0;border:1px solid rgba(255,255,255,.05)}
+    legend{padding:0 6px;color:var(--muted)}
+    label{display:block;font-weight:600;margin-bottom:8px}
+    input[type=text],input[type=number]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #29313b;background:#0e141b;color:var(--fg)}
+    input:invalid{border-color:#7c3aed}
+    .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+    .radio{display:flex;gap:6px;align-items:center;font-weight:500}
+    .numwrap{display:flex;align-items:center;gap:8px}
+    .grid{display:grid;gap:16px}
+    .grid-3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+    @media(min-width:680px){.grid{grid-template-columns:1fr 1fr}}
+    .actions{display:flex;gap:10px;margin-top:12px}
+    button{border:0;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700;background:linear-gradient(180deg,#3b82f6,#2563eb);color:white}
+    button[disabled]{opacity:.4;cursor:not-allowed}
+    button.ghost{background:#223041;color:#cfe1f8}
+    #msg{min-height:1.2em;color:#fbbf24;font-weight:600}
+    .bars{display:grid;gap:14px;margin:8px 0 4px}
+    .bar-label{font-size:.9rem;color:var(--muted);margin-bottom:4px}
+    .bar-track{height:18px;background:#0e141b;border-radius:999px;border:1px solid #263140;overflow:hidden}
+    .bar-fill{height:100%;width:0%;background:var(--mid);transition:width .3s ease, background-color .2s ease}
+    .bar-text{font-size:.9rem;color:#b7c7d6;margin-top:4px}
+    .metric{background:#0f1620;padding:12px;border-radius:12px;border:1px solid #1f2a36}
+    .metric .k{color:#9fb0bf;font-size:.85rem}
+    .metric .v{font-size:1.2rem;font-weight:800}
+    .kv{list-style:none;padding:0;margin:8px 0 0}
+    .kv li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #283244}
+    .kv li:last-child{border-bottom:0}
+    .kv .k{color:#9fb0bf}
+    .kv .v{font-weight:700}
+    .chip{display:inline-block;padding:8px 12px;border-radius:999px;font-weight:800;margin-top:10px}
+    .ok{color:#b7f2c2;background:rgba(46,125,50,.12)}
+    .bad{color:#ffc6c6;background:rgba(198,40,40,.1)}
+    .neutral{color:#cfe1f8;background:rgba(69,90,100,.15)}
+    .disclaimer{margin-top:10px;color:#90a4b4}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Calculadora de Agudeza Visual</h1>
+    <p class="subtitle">Entrada en <strong>Snellen</strong>. Conversión automática a <strong>logMAR</strong>, <strong>ETDRS (letras)</strong> y <strong>% de mejoría</strong>.</p>
+
+    <form id="av-form" novalidate>
+      <fieldset class="card">
+        <legend>Configuración de Snellen</legend>
+        <div class="row">
+          <label class="radio"><input type="radio" name="mode" value="20" checked />20/x (pies)</label>
+          <label class="radio"><input type="radio" name="mode" value="6" />6/x (metros)</label>
+          <label class="radio"><input type="radio" name="mode" value="custom" />Personalizado</label>
+          <label class="numwrap" id="custom-num-wrap" hidden>Numerador:&nbsp;<input id="customNumerator" type="number" min="1" max="20" step="1" value="10" /></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>Entradas</legend>
+        <div class="grid">
+          <label>AV inicial (Snellen)<input id="snellenInitial" type="text" placeholder="20/40 o 0.5" required /></label>
+          <label>AV actual (Snellen)<input id="snellenCurrent" type="text" placeholder="20/25 o 0.8" required /></label>
+        </div>
+        <div class="actions">
+          <button id="calcBtn" type="submit" disabled>Calcular</button>
+          <button id="clearBtn" type="button" class="ghost">Limpiar</button>
+        </div>
+        <p id="msg"></p>
+      </fieldset>
+    </form>
+
+    <section id="results" class="card" hidden>
+      <h2>Resultados</h2>
+      <div class="bars">
+        <div class="bar"><div class="bar-label">AV inicial</div><div class="bar-track"><div id="barInitial" class="bar-fill"></div></div><div id="barInitialText" class="bar-text"></div></div>
+        <div class="bar"><div class="bar-label">AV actual</div><div class="bar-track"><div id="barCurrent" class="bar-fill"></div></div><div id="barCurrentText" class="bar-text"></div></div>
+      </div>
+      <div class="grid grid-3">
+        <div class="metric"><div class="k">ΔETDRS</div><div id="deltaEtdrs" class="v"></div></div>
+        <div class="metric"><div class="k">ΔlogMAR</div><div id="deltaLogmar" class="v"></div></div>
+        <div class="metric"><div class="k">% mejoría</div><div id="pctImprove" class="v"></div></div>
+      </div>
+      <div class="grid">
+        <div><h3>Visita inicial</h3><ul id="initialList" class="kv"></ul></div>
+        <div><h3>Visita actual</h3><ul id="currentList" class="kv"></ul></div>
+      </div>
+      <div class="chip" id="classification">—</div>
+      <details class="disclaimer"><summary>Nota</summary>Las conversiones Snellen→logMAR→ETDRS son aproximaciones estándar para visualización clínica.</details>
+    </section>
+  </main>
+
+<script>
+function parseSnellen(inputStr, mode, customNumerator){
+  if(!inputStr) return null;
+  const cleaned=String(inputStr).trim().replace(',', '.');
+  let m=mode==='20'?20:mode==='6'?6:Number(customNumerator)||10;
+  if(cleaned.includes('/')){
+    const [a,b]=cleaned.split('/');
+    const num=Number(a),den=Number(b);
+    if(!isFinite(num)||!isFinite(den)||num<=0||den<=0) return null;
+    return {m:num,n:den,vaDec:num/den};
+  }
+  const va=Number(cleaned);
+  if(!isFinite(va)||va<=0) return null;
+  const n=m/va;
+  return {m,n,vaDec:m/n};
+}
+function toLogMAR(m,n){return Math.log10(n/m);} 
+function toETDRS(logmar){return 85-50*logmar;}
+function formatSnellen(m,n,mode,custom){const va=m/n;let M=mode==='6'?6:mode==='custom'?Number(custom)||10:20;const denom=M/va;return `${M}/${Math.round(denom)}`;}
+function classify(dE,dL){if(dE>=5||dL<=-0.1)return{label:'MEJORA',cls:'ok'};if(dE<=-5||dL>=0.1)return{label:'EMPEORA',cls:'bad'};return{label:'SIN CAMBIO',cls:'neutral'};}
+function pctImproveETDRS(dE,base){return (dE/Math.max(1,Math.abs(base)))*100;}
+// Ajuste: cálculo simétrico de logMAR, negativo = mejora, positivo = empeora
+function pctImproveLogMAR(l0,l1){return ((l0-l1)/Math.abs(l0))*100;}
+function pctImproveSnellen(va0,va1){return ((va1-va0)/va0)*100;}
+function round(x,d=2){return Number(Math.round(x*10**d)/10**d);}
+
+const form=document.getElementById('av-form');
+const inputs=[document.getElementById('snellenInitial'),document.getElementById('snellenCurrent')];
+const calcBtn=document.getElementById('calcBtn');
+const msg=document.getElementById('msg');
+const results=document.getElementById('results');
+const barInitial=document.getElementById('barInitial');
+const barCurrent=document.getElementById('barCurrent');
+const barInitialText=document.getElementById('barInitialText');
+const barCurrentText=document.getElementById('barCurrentText');
+const deltaEtdrsEl=document.getElementById('deltaEtdrs');
+const deltaLogmarEl=document.getElementById('deltaLogmar');
+const pctImproveEl=document.getElementById('pctImprove');
+const initialList=document.getElementById('initialList');
+const currentList=document.getElementById('currentList');
+const classificationChip=document.getElementById('classification');
+
+function isValidInput(s){if(!s) return false;const t=String(s).trim();if(t.includes('/')){const[a,b]=t.split('/');return isFinite(a)&&isFinite(b)&&a>0&&b>0;}return isFinite(t)&&t>0;}
+function updateButton(){const ok=isValidInput(inputs[0].value)&&isValidInput(inputs[1].value);calcBtn.disabled=!ok;msg.textContent=ok?'':'Ingresa dos valores válidos';}
+inputs.forEach(i=>i.addEventListener('input',updateButton));
+
+form.addEventListener('submit',e=>{e.preventDefault();
+  const mode=document.querySelector('input[name="mode"]:checked').value;
+  const custom=document.getElementById('customNumerator').value;
+  const p0=parseSnellen(inputs[0].value,mode,custom);
+  const p1=parseSnellen(inputs[1].value,mode,custom);
+  if(!p0||!p1){msg.textContent='Formato inválido';return;}
+  const l0=toLogMAR(p0.m,p0.n),l1=toLogMAR(p1.m,p1.n);
+  const e0=toETDRS(l0),e1=toETDRS(l1);
+  const dE=e1-e0,dL=l1-l0;
+  const pctE=pctImproveETDRS(dE,e0),pctL=pctImproveLogMAR(l0,l1);
+  const pctS=pctImproveSnellen(p0.vaDec,p1.vaDec);
+  barInitial.style.width=`${Math.max(0,Math.min(100,e0))}%`;
+  barCurrent.style.width=`${Math.max(0,Math.min(100,e1))}%`;
+  barInitial.style.backgroundColor=barCurrent.style.backgroundColor=dE>=5||dL<=-0.1?"var(--ok)":dE<=-5||dL>=0.1?"var(--bad)":"var(--mid)";
+  barInitialText.textContent=`${formatSnellen(p0.m,p0.n,mode,custom)} | logMAR ${round(l0,2)} | ${Math.round(e0)} letras`;
+  barCurrentText.textContent=`${formatSnellen(p1.m,p1.n,mode,custom)} | logMAR ${round(l1,2)} | ${Math.round(e1)} letras`;
+  deltaEtdrsEl.textContent=`${dE>=0?'+':''}${Math.round(dE)} letras`;
+  deltaLogmarEl.textContent=`${dL>=0?'+':''}${round(dL,2)}`;
+  pctImproveEl.textContent=`${round(pctE,1)}% (ETDRS) | ${round(pctL,1)}% (logMAR) | ${round(pctS,1)}% (Snellen)`;
+  initialList.innerHTML=`<li><span class='k'>Snellen</span><span class='v'>${formatSnellen(p0.m,p0.n,mode,custom)}</span></li><li><span class='k'>logMAR</span><span class='v'>${round(l0,2)}</span></li><li><span class='k'>ETDRS</span><span class='v'>${Math.round(e0)}</span></li>`;
+  currentList.innerHTML=`<li><span class='k'>Snellen</span><span class='v'>${formatSnellen(p1.m,p1.n,mode,custom)}</span></li><li><span class='k'>logMAR</span><span class='v'>${round(l1,2)}</span></li><li><span class='k'>ETDRS</span><span class='v'>${Math.round(e1)}</span></li>`;
+  const cls=classify(dE,dL);
+  classificationChip.textContent=`Clasificación: ${cls.label}`;
+  classificationChip.className=`chip ${cls.cls}`;
+  results.hidden=false;
+});
+updateButton();
+</script>
+</body>
+</html>
