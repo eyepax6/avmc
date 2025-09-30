@@ -103,7 +103,7 @@
         <div><h3>Visita actual</h3><ul id="currentList" class="kv"></ul></div>
       </div>
       <div class="chip" id="classification">—</div>
-      <details class="disclaimer"><summary>Nota</summary>Las conversiones Snellen→logMAR→ETDRS son aproximaciones estándar para visualización clínica.</details>
+      <details class="disclaimer"><summary>Nota</summary>Las conversiones Snellen→logMAR→ETDRS son aproximaciones estándar para visualización clínica. <br> Por rigor, el <strong>% de mejoría</strong> se muestra solo en <strong>Snellen (VA decimal)</strong>. En <strong>logMAR</strong> y <strong>ETDRS</strong> se recomienda reportar <em>cambio absoluto</em> (0.1 logMAR ≈ 5 letras ≈ 1 línea), no porcentajes.</details>
     </section>
   </main>
 
@@ -171,7 +171,8 @@ form.addEventListener('submit',e=>{e.preventDefault();
   barCurrentText.textContent=`${formatSnellen(p1.m,p1.n,mode,custom)} | logMAR ${round(l1,2)} | ${Math.round(e1)} letras`;
   deltaEtdrsEl.textContent=`${dE>=0?'+':''}${Math.round(dE)} letras`;
   deltaLogmarEl.textContent=`${dL>=0?'+':''}${round(dL,2)}`;
-  pctImproveEl.textContent=`${round(pctE,1)}% (ETDRS) | ${round(pctL,1)}% (logMAR) | ${round(pctS,1)}% (Snellen)`;
+  pctImproveEl.textContent=`${round(pctS,1)}% (Snellen)`;
+pctImproveEl.title = 'Se reporta % solo en Snellen (VA decimal). En logMAR y ETDRS el estándar clínico es reportar el cambio absoluto (líneas/letras), no porcentajes.';
   initialList.innerHTML=`<li><span class='k'>Snellen</span><span class='v'>${formatSnellen(p0.m,p0.n,mode,custom)}</span></li><li><span class='k'>logMAR</span><span class='v'>${round(l0,2)}</span></li><li><span class='k'>ETDRS</span><span class='v'>${Math.round(e0)}</span></li>`;
   currentList.innerHTML=`<li><span class='k'>Snellen</span><span class='v'>${formatSnellen(p1.m,p1.n,mode,custom)}</span></li><li><span class='k'>logMAR</span><span class='v'>${round(l1,2)}</span></li><li><span class='k'>ETDRS</span><span class='v'>${Math.round(e1)}</span></li>`;
   const cls=classify(dE,dL);
